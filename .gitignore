@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+/.codex/
+/dist/*
+!/dist/GlassDesk-win-x64-icon.zip
