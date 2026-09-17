@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows;
+using GlassDesk.Models;
 using GlassDesk.Services;
 using GlassDesk.UI;
 using Forms = System.Windows.Forms;
@@ -12,6 +13,8 @@ public partial class App : System.Windows.Application
     private Mutex? _singleInstanceMutex;
     private Forms.NotifyIcon? _trayIcon;
     private GlassDeskController? _controller;
+    private ProcessWindow? _processWindow;
+    private WindowCandidate? _cachedForegroundTarget;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -25,6 +28,7 @@ public partial class App : System.Windows.Application
 
         _controller = new GlassDeskController();
         _controller.StatusChanged += OnStatusChanged;
+        _controller.OpenProcessRequested += OnOpenProcessRequested;
         _trayIcon = new Forms.NotifyIcon
         {
             Icon = LoadApplicationIcon(),
@@ -32,6 +36,7 @@ public partial class App : System.Windows.Application
             Visible = true,
             ContextMenuStrip = BuildMenu()
         };
+        _trayIcon.MouseDown += (_, _) => CacheForegroundTarget();
         _trayIcon.DoubleClick += (_, _) => ShowSettings();
 
         if (e.Args.Any(argument => string.Equals(argument, "--smoke-test", StringComparison.OrdinalIgnoreCase)))
@@ -51,6 +56,7 @@ public partial class App : System.Windows.Application
         if (_controller is not null)
         {
             _controller.StatusChanged -= OnStatusChanged;
+            _controller.OpenProcessRequested -= OnOpenProcessRequested;
             _controller.Dispose();
         }
 
@@ -67,6 +73,8 @@ public partial class App : System.Windows.Application
     private Forms.ContextMenuStrip BuildMenu()
     {
         var menu = new Forms.ContextMenuStrip();
+        // Opening is still before the menu is shown; MouseDown also covers the tray interaction path.
+        menu.Opening += (_, _) => CacheForegroundTarget();
         menu.Items.Add("增加透明度", null, (_, _) => _controller?.IncreaseOpacity());
         menu.Items.Add("降低透明度", null, (_, _) => _controller?.DecreaseOpacity());
         menu.Items.Add("恢复原始透明度", null, (_, _) => _controller?.ResetForeground());
@@ -74,20 +82,66 @@ public partial class App : System.Windows.Application
         menu.Items.Add("当前窗口信息", null, (_, _) => ShowForegroundInfo());
         menu.Items.Add("只读镜像模式", null, (_, _) => _controller?.StartMirrorForForeground());
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("设置", null, (_, _) => ShowSettings());
+        menu.Items.Add("设置当前窗口为隐藏目标", null, (_, _) => SetHiddenTargetFromCache());
+        menu.Items.Add("清除隐藏目标", null, (_, _) => _controller?.ClearHiddenTarget());
+        menu.Items.Add("进程隐藏", null, (_, _) => ShowProcessWindow());
+        menu.Items.Add("透明度设置", null, (_, _) => ShowSettings());
         menu.Items.Add("退出 GlassDesk", null, (_, _) => Shutdown());
         return menu;
+    }
+
+    private void CacheForegroundTarget()
+    {
+        _cachedForegroundTarget = _controller?.GetForegroundTarget();
+    }
+
+    private void OnOpenProcessRequested(object? sender, EventArgs e)
+    {
+        if (_processWindow is { IsVisible: true })
+        {
+            _processWindow.Hide();
+            return;
+        }
+
+        ShowProcessWindow();
+    }
+
+    private void SetHiddenTargetFromCache()
+    {
+        if (_controller is null) return;
+        if (_cachedForegroundTarget is null)
+        {
+            _trayIcon?.ShowBalloonTip(1800, "GlassDesk", "未能在打开托盘菜单前识别前台窗口。", Forms.ToolTipIcon.Warning);
+            return;
+        }
+
+        _controller.SetHiddenTarget(_cachedForegroundTarget);
+    }
+
+    private void ShowProcessWindow()
+    {
+        if (_controller is null) return;
+        if (_processWindow is not null)
+        {
+            if (_processWindow.WindowState == WindowState.Minimized)
+            {
+                _processWindow.WindowState = WindowState.Normal;
+            }
+            _processWindow.Show();
+            _processWindow.Activate();
+            return;
+        }
+
+        _processWindow = new ProcessWindow(_controller);
+        _processWindow.Closed += (_, _) => _processWindow = null;
+        _processWindow.Show();
+        _processWindow.Activate();
     }
 
     private void ShowSettings()
     {
         if (_controller is null) return;
-        var window = new SettingsWindow(_controller);
-        if (MainWindow is { IsVisible: true } owner && !ReferenceEquals(owner, window))
-        {
-            window.Owner = owner;
-        }
-        window.ShowDialog();
+        new SettingsWindow(_controller).ShowDialog();
     }
 
     private static Icon LoadApplicationIcon()

@@ -9,7 +9,10 @@ public enum GlassDeskHotkey
 {
     Increase,
     Decrease,
-    Reset
+    Reset,
+    Hide,
+    Restore,
+    OpenTray
 }
 
 public sealed class HotkeyService : IDisposable
@@ -19,6 +22,7 @@ public sealed class HotkeyService : IDisposable
     private readonly Dictionary<GlassDeskHotkey, HotkeyDefinition> _definitions = new();
 
     public event EventHandler<GlassDeskHotkey>? Pressed;
+    public nint MessageWindowHandle => _source.Handle;
 
     public HotkeyService()
     {
@@ -44,10 +48,19 @@ public sealed class HotkeyService : IDisposable
             return new(GlassDeskStatus.ConfigInvalid, $"降低透明度快捷键无效：{decreaseError}");
         if (!TryParse(settings.Reset, out var reset, out var resetError))
             return new(GlassDeskStatus.ConfigInvalid, $"恢复透明度快捷键无效：{resetError}");
+        if (!TryParse(settings.Hide, out var hide, out var hideError))
+            return new(GlassDeskStatus.ConfigInvalid, $"隐藏窗口快捷键无效：{hideError}");
+        if (!TryParse(settings.Restore, out var restore, out var restoreError))
+            return new(GlassDeskStatus.ConfigInvalid, $"恢复隐藏窗口快捷键无效：{restoreError}");
+        if (!TryParse(settings.OpenTray, out var openTray, out var openTrayError))
+            return new(GlassDeskStatus.ConfigInvalid, $"打开托盘快捷键无效：{openTrayError}");
 
         parsed[GlassDeskHotkey.Increase] = increase;
         parsed[GlassDeskHotkey.Decrease] = decrease;
         parsed[GlassDeskHotkey.Reset] = reset;
+        parsed[GlassDeskHotkey.Hide] = hide;
+        parsed[GlassDeskHotkey.Restore] = restore;
+        parsed[GlassDeskHotkey.OpenTray] = openTray;
 
         var oldDefinitions = _definitions.ToDictionary(pair => pair.Key, pair => pair.Value);
         if (!UnregisterAll())

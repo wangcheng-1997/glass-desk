@@ -46,6 +46,32 @@ public sealed record WindowCandidate(
     int Width,
     int Height);
 
+public sealed record WindowTargetIdentity(
+    string ProcessPath,
+    string WindowClassName,
+    string Title);
+
+public sealed class WindowTargetIdentityComparer : IEqualityComparer<WindowTargetIdentity>
+{
+    public static WindowTargetIdentityComparer Instance { get; } = new();
+
+    public bool Equals(WindowTargetIdentity? x, WindowTargetIdentity? y) =>
+        ReferenceEquals(x, y)
+        || (x is not null && y is not null
+            && string.Equals(x.ProcessPath, y.ProcessPath, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(x.WindowClassName, y.WindowClassName, StringComparison.Ordinal)
+            && string.Equals(x.Title, y.Title, StringComparison.Ordinal));
+
+    public int GetHashCode(WindowTargetIdentity obj)
+    {
+        var hash = new HashCode();
+        hash.Add(obj.ProcessPath, StringComparer.OrdinalIgnoreCase);
+        hash.Add(obj.WindowClassName, StringComparer.Ordinal);
+        hash.Add(obj.Title, StringComparer.Ordinal);
+        return hash.ToHashCode();
+    }
+}
+
 public sealed class WindowLease
 {
     public required nint Hwnd { get; init; }
@@ -59,6 +85,15 @@ public sealed class WindowLease
     public required string WindowClassName { get; init; }
 }
 
+public sealed class HiddenWindowLease
+{
+    public required nint Hwnd { get; init; }
+    public required uint ProcessId { get; init; }
+    public required long ProcessStartFileTimeUtc { get; init; }
+    public required string ProcessPath { get; init; }
+    public required string WindowClassName { get; init; }
+}
+
 public sealed record AppRule(
     string CanonicalExePath,
     string? WindowClassName,
@@ -68,7 +103,10 @@ public sealed record AppRule(
 public sealed record HotkeySettings(
     string Increase = "Ctrl+Alt+Up",
     string Decrease = "Ctrl+Alt+Down",
-    string Reset = "Ctrl+Alt+0");
+    string Reset = "Ctrl+Alt+0",
+    string Hide = "Alt+H",
+    string Restore = "Alt+R",
+    string OpenTray = "Alt+X");
 
 public sealed class GlassDeskSettings
 {
@@ -77,4 +115,6 @@ public sealed class GlassDeskSettings
     public List<AppRule> Rules { get; set; } = new();
     public HotkeySettings Hotkeys { get; set; } = new();
     public List<string> ExcludedProcessPaths { get; set; } = new();
+    public WindowTargetIdentity? HiddenTarget { get; set; }
+    public List<WindowTargetIdentity> HiddenTargets { get; set; } = new();
 }

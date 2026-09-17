@@ -33,7 +33,12 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        var hotkeys = new HotkeySettings(IncreaseHotkeyBox.Text, DecreaseHotkeyBox.Text, ResetHotkeyBox.Text);
+        var hotkeys = _controller.Settings.Hotkeys with
+        {
+            Increase = IncreaseHotkeyBox.Text,
+            Decrease = DecreaseHotkeyBox.Text,
+            Reset = ResetHotkeyBox.Text
+        };
         var result = _controller.UpdateHotkeys(hotkeys);
         if (!result.IsSuccess)
         {

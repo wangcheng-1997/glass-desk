@@ -8,6 +8,7 @@ internal static class NativeMethods
 {
     internal const int GWL_EXSTYLE = -20;
     internal const uint WS_EX_LAYERED = 0x00080000;
+    internal const uint WS_EX_TOOLWINDOW = 0x00000080;
     internal const uint LWA_ALPHA = 0x00000002;
     internal const uint SWP_NOSIZE = 0x0001;
     internal const uint SWP_NOMOVE = 0x0002;
@@ -30,6 +31,8 @@ internal static class NativeMethods
     internal const uint MOD_WIN = 0x0008;
     internal const uint MOD_NOREPEAT = 0x4000;
     internal const int WM_HOTKEY = 0x0312;
+    internal const int SW_HIDE = 0;
+    internal const int SW_RESTORE = 9;
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -51,6 +54,14 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ShowWindow(nint hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetForegroundWindow(nint hWnd);
 
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern uint GetWindowThreadProcessId(nint hWnd, out uint processId);

@@ -1,0 +1,57 @@
+<Window x:Class="GlassDesk.UI.ProcessWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GlassDesk 进程隐藏"
+        Width="680"
+        Height="620"
+        MinWidth="520"
+        MinHeight="420"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0">
+            <TextBlock FontSize="18" FontWeight="SemiBold" Text="桌面进程隐藏" />
+            <Button DockPanel.Dock="Right" Padding="10,5" Content="刷新进程列表" Click="Refresh_Click" />
+        </DockPanel>
+        <TextBlock Grid.Row="1" Margin="0,8,0,10" TextWrapping="Wrap" Foreground="#555"
+                   Text="这里只显示当前桌面上可见的应用窗口。勾选目标并保存后，按 Alt+H 批量隐藏，按 Alt+R 恢复最近一批；取消不会修改已保存目标。" />
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="170" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock VerticalAlignment="Center" Text="隐藏 / 恢复 / 打开快捷键" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <TextBox x:Name="HideHotkeyBox" Width="100" Margin="0,0,8,0" Padding="6" />
+                <TextBox x:Name="RestoreHotkeyBox" Width="100" Margin="0,0,8,0" Padding="6" />
+                <TextBox x:Name="OpenProcessHotkeyBox" Width="100" Padding="6" />
+            </StackPanel>
+        </Grid>
+        <ListBox Grid.Row="3" x:Name="ProcessList" MinHeight="180" BorderBrush="#CCC" BorderThickness="1"
+                 ScrollViewer.VerticalScrollBarVisibility="Visible">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <CheckBox Margin="8,6" IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanPersist}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding ProcessName}" Foreground="#555" />
+                            <TextBlock Text="{Binding WindowClassName}" Foreground="#555" />
+                            <TextBlock Text="{Binding Availability}" Foreground="#996600" />
+                        </StackPanel>
+                    </CheckBox>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel Grid.Row="4" Margin="0,14,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Width="110" Margin="0,0,8,0" Padding="10,6" Content="保存并关闭" Click="Save_Click" />
+            <Button Width="90" Padding="10,6" Content="取消" Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -32,16 +32,61 @@ public sealed class WindowTargetResolver
         return windows;
     }
 
+    public IReadOnlyList<WindowCandidate> EnumerateDesktopWindows() =>
+        EnumerateTopLevelWindows()
+            .Where(candidate => !candidate.IsMinimized
+                && !string.IsNullOrWhiteSpace(candidate.Title)
+                && candidate.ProcessStartFileTimeUtc != 0
+                && !string.IsNullOrWhiteSpace(candidate.ProcessPath)
+                && !IsDesktopShellWindow(candidate)
+                && (NativeMethods.GetWindowLongPtr(candidate.Hwnd, NativeMethods.GWL_EXSTYLE).ToInt64()
+                    & NativeMethods.WS_EX_TOOLWINDOW) == 0)
+            .ToArray();
+
+    public WindowCandidate? Find(WindowTargetIdentity identity)
+    {
+        var matches = EnumerateTopLevelWindows().Where(candidate =>
+            string.Equals(candidate.ProcessPath, identity.ProcessPath, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(candidate.WindowClassName, identity.WindowClassName, StringComparison.Ordinal)
+            && string.Equals(candidate.Title, identity.Title, StringComparison.Ordinal));
+
+        using var enumerator = matches.GetEnumerator();
+        if (!enumerator.MoveNext()) return null;
+
+        var match = enumerator.Current;
+        return enumerator.MoveNext() ? null : match;
+    }
+
     public bool StillMatches(WindowLease lease)
     {
-        if (lease.ProcessStartFileTimeUtc == 0) return false;
-        var candidate = TryCreateCandidate(lease.Hwnd);
+        return StillMatches(
+            lease.Hwnd,
+            lease.ProcessId,
+            lease.ProcessStartFileTimeUtc,
+            lease.ProcessPath,
+            lease.WindowClassName);
+    }
+
+    public bool StillMatches(HiddenWindowLease lease)
+    {
+        return StillMatches(
+            lease.Hwnd,
+            lease.ProcessId,
+            lease.ProcessStartFileTimeUtc,
+            lease.ProcessPath,
+            lease.WindowClassName);
+    }
+
+    private bool StillMatches(nint hwnd, uint processId, long processStartFileTimeUtc, string processPath, string windowClassName)
+    {
+        if (processStartFileTimeUtc == 0 || string.IsNullOrWhiteSpace(processPath) || string.IsNullOrWhiteSpace(windowClassName)) return false;
+        var candidate = TryCreateCandidate(hwnd);
         return candidate is not null
                && candidate.ProcessStartFileTimeUtc != 0
-               && candidate.ProcessId == lease.ProcessId
-               && candidate.ProcessStartFileTimeUtc == lease.ProcessStartFileTimeUtc
-               && string.Equals(candidate.ProcessPath, lease.ProcessPath, StringComparison.OrdinalIgnoreCase)
-               && string.Equals(candidate.WindowClassName, lease.WindowClassName, StringComparison.Ordinal);
+               && candidate.ProcessId == processId
+               && candidate.ProcessStartFileTimeUtc == processStartFileTimeUtc
+               && string.Equals(candidate.ProcessPath, processPath, StringComparison.OrdinalIgnoreCase)
+               && string.Equals(candidate.WindowClassName, windowClassName, StringComparison.Ordinal);
     }
 
     public WindowCandidate? TryCreateCandidate(nint hwnd)
@@ -86,6 +131,9 @@ public sealed class WindowTargetResolver
             rect.Right - rect.Left,
             rect.Bottom - rect.Top);
     }
+
+    private static bool IsDesktopShellWindow(WindowCandidate candidate) =>
+        candidate.WindowClassName is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd";
 
     private static string TryGetProcessPath(uint pid)
     {
